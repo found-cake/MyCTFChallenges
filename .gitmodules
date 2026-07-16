@@ -22,3 +22,6 @@
 [submodule "2026 SecurityFirst 연초/WEB/;==;"]
 	path = "2026 SecurityFirst 연초/WEB/;==;"
 	url = https://github.com/found-cake/php-equals.git
+[submodule "2026 SecurityFirst 연초/WEB/HelloGopher"]
+	path = 2026 SecurityFirst 연초/WEB/HelloGopher
+	url = https://github.com/found-cake/hellogopher.git
