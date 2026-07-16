@@ -19,3 +19,6 @@
 [submodule "2026 SecurityFirst 연초/MISC/DifferentReadingMethods"]
 	path = 2026 SecurityFirst 연초/MISC/DifferentReadingMethods
 	url = https://github.com/found-cake/CrossandDownReading.git
+[submodule "2026 SecurityFirst 연초/WEB/;==;"]
+	path = "2026 SecurityFirst 연초/WEB/;==;"
+	url = https://github.com/found-cake/php-equals.git
