@@ -7,3 +7,6 @@
 [submodule "2025 SecurityFirst 연말/MISC/Don’t Share Flag"]
 	path = 2025 SecurityFirst 연말/MISC/Don’t Share Flag
 	url = https://github.com/found-cake/misc-protobuf-zstd.git
+[submodule "2025 SecurityFirst 연말/WEB/Preview Bot"]
+	path = 2025 SecurityFirst 연말/WEB/Preview Bot
+	url = https://github.com/found-cake/botsetting.git
