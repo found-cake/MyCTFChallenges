@@ -13,6 +13,9 @@
 [submodule "2025 SecurityFirst 연말/WEB/Preview Bot"]
 	path = 2025 SecurityFirst 연말/WEB/Preview Bot
 	url = https://github.com/found-cake/botsetting.git
+[submodule "2026 SecurityFirst 연초/MISC/GhostHunter"]
+	path = 2026 SecurityFirst 연초/MISC/GhostHunter
+	url = https://github.com/found-cake/GhostHunter.git
 [submodule "2026 SecurityFirst 연초/MISC/DifferentReadingMethods"]
 	path = 2026 SecurityFirst 연초/MISC/DifferentReadingMethods
 	url = https://github.com/found-cake/CrossandDownReading.git
