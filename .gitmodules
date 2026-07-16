@@ -4,3 +4,6 @@
 [submodule "2025 YISF/web/SessionRecipe"]
 	path = 2025 YISF/web/SessionRecipe
 	url = https://github.com/found-cake/lolctf.git
+[submodule "2025 SecurityFirst 연말/MISC/Minecraft"]
+	path = 2025 SecurityFirst 연말/MISC/Minecraft
+	url = https://github.com/found-cake/diafall.git
