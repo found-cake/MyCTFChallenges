@@ -1,0 +1,50 @@
+name: Add a submodule
+description: Request a repository to be added as a Git submodule.
+title: "[Submodule] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Enter the repository and the parent directory where it should be added.
+        The final directory name is derived from the repository name unless overridden.
+
+  - type: input
+    id: repository
+    attributes:
+      label: Repository
+      description: GitHub HTTPS URL or owner/repository shorthand.
+      placeholder: example/example
+    validations:
+      required: true
+
+  - type: input
+    id: parent-path
+    attributes:
+      label: Parent path
+      description: Parent directory inside this repository. Enter a single period (.) for the repository root.
+      placeholder: collections
+      value: "."
+    validations:
+      required: true
+
+  - type: input
+    id: directory-name
+    attributes:
+      label: Directory name
+      description: Optional. Leave blank to use the target repository name.
+      placeholder: example
+
+  - type: input
+    id: branch
+    attributes:
+      label: Branch
+      description: Optional. Leave blank to use the target repository's default branch.
+      placeholder: main
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I checked the repository and parent path for mistakes.
+          required: true

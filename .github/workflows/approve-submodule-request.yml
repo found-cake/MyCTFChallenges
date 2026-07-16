@@ -1,0 +1,192 @@
+name: Approve submodule request
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: submodule-approval-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  approve:
+    if: >-
+      github.event.issue.pull_request == null &&
+      github.event.comment.body == '/approve' &&
+      startsWith(github.event.issue.title, '[Submodule]') &&
+      contains(github.event.issue.body, '### Repository') &&
+      contains(github.event.issue.body, '### Parent path')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verify approver permission
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APPROVER: ${{ github.event.comment.user.login }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          PERMISSION="$(
+            gh api \
+              "repos/${GITHUB_REPOSITORY}/collaborators/${APPROVER}/permission" \
+              --jq '.permission' 2>/dev/null || true
+          )"
+
+          case "$PERMISSION" in
+            admin|maintain|write)
+              echo "Approval accepted from ${APPROVER} (${PERMISSION})."
+              ;;
+            *)
+              gh issue comment "$ISSUE_NUMBER" \
+                --body "❌ @${APPROVER} does not have write permission to approve this request." >/dev/null
+              exit 1
+              ;;
+          esac
+
+      - name: Check out the default branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Revalidate current request
+        id: revalidate
+        env:
+          SUBMODULE_TOKEN: ${{ secrets.SUBMODULE_TOKEN }}
+          SUBMODULE_TOKEN_USERNAME: ${{ secrets.SUBMODULE_TOKEN_USERNAME }}
+        run: |
+          node scripts/submodule-manager.mjs inspect \
+            --event "$GITHUB_EVENT_PATH" \
+            --output "$RUNNER_TEMP/submodule-request.json" \
+            --markdown "$RUNNER_TEMP/submodule-preview.md" \
+            --strict
+
+          cat "$RUNNER_TEMP/submodule-preview.md"
+
+      - name: Update preview comment
+        if: always() && steps.revalidate.outcome != 'skipped'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          COMMENT_ID="$(
+            gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" \
+              --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- submodule-manager-preview -->"))) | .id' \
+              | head -n 1
+          )"
+
+          if [ -n "$COMMENT_ID" ]; then
+            gh api --method PATCH \
+              "repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}" \
+              -f body="$(cat "$RUNNER_TEMP/submodule-preview.md")" >/dev/null
+          else
+            gh issue comment "$ISSUE_NUMBER" \
+              --body-file "$RUNNER_TEMP/submodule-preview.md" >/dev/null
+          fi
+
+      - name: Export validated request
+        id: request
+        run: |
+          node scripts/submodule-manager.mjs github-output \
+            --request "$RUNNER_TEMP/submodule-request.json" \
+            --issue "${{ github.event.issue.number }}" \
+            --markdown "$RUNNER_TEMP/pull-request-body.md" >> "$GITHUB_OUTPUT"
+
+      - name: Check for an existing automation branch
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          PR_BRANCH="submodule/issue-${ISSUE_NUMBER}"
+          PR_URL="$(
+            gh pr list --state all --limit 1000 \
+              --json url,headRefName \
+              --jq ".[] | select(.headRefName == \"${PR_BRANCH}\" or (.headRefName | startswith(\"${PR_BRANCH}-retry-\"))) | .url" \
+              | head -n 1
+          )"
+
+          if [ -n "$PR_URL" ]; then
+            gh issue comment "$ISSUE_NUMBER" \
+              --body "ℹ️ A pull request for this issue already exists: ${PR_URL}" >/dev/null
+            echo "branch=$PR_BRANCH" >> "$GITHUB_OUTPUT"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            BRANCH_SHA="$(
+              git ls-remote --heads origin "refs/heads/${PR_BRANCH}" \
+                | awk 'NR == 1 { print $1 }'
+            )"
+
+            if [ -n "$BRANCH_SHA" ]; then
+              RETRY_BRANCH="${PR_BRANCH}-retry-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+              gh issue comment "$ISSUE_NUMBER" \
+                --body "ℹ️ Preserving orphan branch \`${PR_BRANCH}\` and retrying with \`${RETRY_BRANCH}\`." >/dev/null
+              echo "branch=$RETRY_BRANCH" >> "$GITHUB_OUTPUT"
+              echo "skip=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "branch=$PR_BRANCH" >> "$GITHUB_OUTPUT"
+              echo "skip=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Add submodule
+        if: steps.existing.outputs.skip == 'false'
+        env:
+          PR_BRANCH: ${{ steps.existing.outputs.branch }}
+          SUBMODULE_TOKEN: ${{ secrets.SUBMODULE_TOKEN }}
+          SUBMODULE_TOKEN_USERNAME: ${{ secrets.SUBMODULE_TOKEN_USERNAME }}
+        run: |
+          git switch -c "$PR_BRANCH"
+          node scripts/submodule-manager.mjs apply \
+            --request "$RUNNER_TEMP/submodule-request.json"
+
+      - name: Commit and push
+        if: steps.existing.outputs.skip == 'false'
+        env:
+          PR_BRANCH: ${{ steps.existing.outputs.branch }}
+          TARGET_PATH: ${{ steps.request.outputs.target_path }}
+          REPOSITORY_NAME: ${{ steps.request.outputs.repository_name }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -- .gitmodules "$TARGET_PATH"
+          git commit -m "chore: add ${REPOSITORY_NAME} submodule" \
+            -m "Requested in #${ISSUE_NUMBER}."
+          git push origin "HEAD:refs/heads/${PR_BRANCH}"
+
+      - name: Create pull request
+        if: steps.existing.outputs.skip == 'false'
+        id: pull-request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_BRANCH: ${{ steps.existing.outputs.branch }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+          REPOSITORY_NAME: ${{ steps.request.outputs.repository_name }}
+        run: |
+          PR_URL="$(
+            gh pr create \
+              --head "$PR_BRANCH" \
+              --base "$BASE_BRANCH" \
+              --title "chore: add ${REPOSITORY_NAME} submodule" \
+              --body-file "$RUNNER_TEMP/pull-request-body.md"
+          )"
+
+          echo "url=$PR_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Report created pull request
+        if: steps.existing.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          PR_URL: ${{ steps.pull-request.outputs.url }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" \
+            --body "✅ Submodule pull request created: ${PR_URL}" >/dev/null
