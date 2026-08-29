@@ -28,3 +28,6 @@
 [submodule "2026 SecurityFirst 연초/WEB/AdminPortal"]
 	path = 2026 SecurityFirst 연초/WEB/AdminPortal
 	url = https://github.com/found-cake/ctf-AdminPanel.git
+[submodule "2026 CSKWS/MISC/Echoes of the Abyss/DeepDarkBoss"]
+	path = 2026 CSKWS/MISC/Echoes of the Abyss/DeepDarkBoss
+	url = https://github.com/found-cake/DeepDarkBoss.git
