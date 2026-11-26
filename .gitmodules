@@ -37,3 +37,6 @@
 [submodule "2026 SCH 정보보호의밤/REV/SpyCalculater"]
 	path = 2026 SCH 정보보호의밤/REV/SpyCalculater
 	url = https://github.com/found-cake/CalculateChallenge.git
+[submodule "2026 SCH 정보보호의밤/MISC/Minecraft"]
+	path = 2026 SCH 정보보호의밤/MISC/Minecraft
+	url = https://github.com/found-cake/ytarget.git
