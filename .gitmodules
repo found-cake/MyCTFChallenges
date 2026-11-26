@@ -40,3 +40,6 @@
 [submodule "2026 SCH 정보보호의밤/MISC/Minecraft"]
 	path = 2026 SCH 정보보호의밤/MISC/Minecraft
 	url = https://github.com/found-cake/ytarget.git
+[submodule "2026 SCH 정보보호의밤/WEB/SequQnA"]
+	path = 2026 SCH 정보보호의밤/WEB/SequQnA
+	url = https://github.com/found-cake/ctf-secu-qna.git
